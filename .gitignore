@@ -1,0 +1,11 @@
+res/*
+log/*
+checkpoints/
+sh_result/*
+res/*
+mf*.py
+mf*.csv
+*.csv
+data/douban/
+data/kuai-small/
+__pycache__/

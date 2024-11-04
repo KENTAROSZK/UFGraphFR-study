@@ -1,0 +1,376 @@
+import warnings
+
+from embedding import EmbeddingUtils
+warnings.filterwarnings("ignore")
+import json
+import pandas as pd
+import numpy as np
+import datetime
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,2"
+import argparse
+from mlp import MLPEngine
+from mykan import FastKANEngine as KANEngine, FastKANWithOutTransfermerEngine as FKWTEngine
+
+from data import SampleGenerator
+from utils import *
+
+
+# Training settings
+parser = argparse.ArgumentParser()
+parser.add_argument('--alias', type=str, default='fedgraph-trankan')
+parser.add_argument('--use_kan', type=bool, default=True)
+parser.add_argument('--clients_sample_ratio', type=float, default=1.0)
+parser.add_argument('--clients_sample_num', type=int, default=0)
+parser.add_argument('--num_round', type=int, default=100)
+parser.add_argument('--local_epoch', type=int, default=1)
+parser.add_argument('--construct_graph_source', type=str, default='item')
+parser.add_argument('--neighborhood_size', type=int, default=0)
+parser.add_argument('--neighborhood_threshold', type=float, default=1.)
+parser.add_argument('--mp_layers', type=int, default=1)
+parser.add_argument('--similarity_metric', type=str, default='cosine')
+parser.add_argument('--reg', type=float, default=1.0)
+parser.add_argument('--lr_eta', type=int, default=80)
+parser.add_argument('--batch_size', type=int, default=256)
+parser.add_argument('--optimizer', type=str, default='sgd')
+parser.add_argument('--lr', type=float, default=0.1)
+parser.add_argument('--dataset', type=str, default='100k')
+parser.add_argument('--num_users', type=int)
+parser.add_argument('--num_items', type=int)
+parser.add_argument('--latent_dim', type=int, default=32)
+parser.add_argument('--num_negative', type=int, default=4)
+parser.add_argument('--layers', type=str, default='64, 32, 16, 8')
+parser.add_argument('--l2_regularization', type=float, default=0.)
+parser.add_argument('--dp', type=float, default=0.1)
+parser.add_argument('--use_cuda', type=bool, default=False)
+parser.add_argument('--use_mps', type=bool, default=False)
+parser.add_argument('--use_transfermer', type=bool, default=True)
+
+parser.add_argument('--use_jointembedding', type=bool, default=True)
+
+parser.add_argument('--device_id', type=int, default=0)
+parser.add_argument('--model_dir', type=str, default='checkpoints/{}_Epoch{}_HR{:.4f}_NDCG{:.4f}.model')
+parser.add_argument('--ind', type=int, default=0)
+parser.add_argument('--ps', type=str, default=None)
+parser.add_argument('--grid_size', type=str, default='3, 3, 3, 3')
+# update_round
+parser.add_argument('--update_round', type=int, default=1)
+parser.add_argument('--embed_dim', type=int, default=100)
+parser.add_argument('--pre_model', type=str, default="USE")
+
+args = parser.parse_args()
+config = vars(args)
+
+def train(config):
+    if not type(config['grid_size']) is list:
+        if len(config['grid_size']) > 1:
+            # 层次维度
+            config['grid_size'] = [int(item) for item in config['grid_size'].split(',')]
+            # split : 分割, 以逗号分割
+        else:
+            config['grid_size'] = int(config['grid_size']) # 层次维度
+    if type(config['layers']) is str:
+        # Model.
+        if len(config['layers']) > 1:
+            config['layers'] = [int(item) for item in config['layers'].split(',')]
+        else:
+            config['layers'] = int(config['layers'])
+    
+    if config['dataset'] == 'ml-1m':
+        config['num_users'] = 6040 # 用户数
+        config['num_items'] = 3706 # 物品数
+    elif config['dataset'] == '100k':
+        config['num_users'] = 943 # 用户数
+        config['num_items'] = 1682 # 物品数
+    elif config['dataset'] == 'lastfm-2k':
+        config['num_users'] = 1600 # 用户数 1600 1484
+        config['num_items'] = 12545 # 物品数
+    elif config['dataset'] == 'amazon':
+        config['num_users'] = 8072 # 用户数
+        config['num_items'] = 11830 # 物品数
+    elif config['dataset'] == 'hetres-2k':
+        config['num_users'] = 2113 # 用户数
+        config['num_items'] = 10109 # 物品数
+    elif config['dataset'] == 'kuai-small':
+        config['num_users'] = 1411
+        config['num_items'] = 1932
+    elif config['dataset'] == 'douban':
+        config['num_users'] = 1927
+        config['num_items'] = 30443
+    else:
+        pass
+
+    if config['alias'] == 'fedgraph-trankan' or config['alias'] == 'fedgraph-trankan-lite' or config['alias'] == 'fedgraph-trankan-pre':
+        engine = KANEngine(config)
+    elif config['alias'] == 'fedgraph-trankan-wot':
+        engine = FKWTEngine(config)
+    else:
+        engine = MLPEngine(config)
+
+
+    user_infos = None
+    # Load Data
+    dataset_dir = "data/" + config['dataset'] + "/" + "ratings.dat"
+    if config['dataset'] == "ml-1m":
+        rating = pd.read_csv(dataset_dir, sep=',', header=None, names=['uid', 'mid', 'rating', 'timestamp'], engine='python')
+        # UserID::Gender::Age::Occupation::Zip-code
+
+        user_infos = pd.read_csv("data/" + config['dataset'] + "/" + "u.user", sep=",", header=None, 
+                                 names=[ 'uid', 'gender', 'age', 'occupation', 'zipcode'], engine='python')
+
+    elif config['dataset'] == "100k":
+        rating = pd.read_csv(dataset_dir, sep=",", header=None, names=['uid', 'mid', 'rating', 'timestamp'], engine='python')
+        user_infos = pd.read_csv("data/" + config['dataset'] + "/" + "u.user", sep=",", header=None, 
+                                 names=['uid', 'gender', 'age', 'occupation', 'zipcode'], engine='python')
+    elif config['dataset'] == "lastfm-2k":
+        rating = pd.read_csv(dataset_dir, sep=",", header=None, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
+        user_infos = pd.read_csv("data/" + config['dataset'] + "/" + "user.dat", sep=",", header=None, 
+                                 names=['uid', 'tag'], engine='python')
+    elif config['dataset'] == "hetres-2k":
+        rating = pd.read_csv(dataset_dir, sep=",", header=None, names=['uid', 'mid', 'rating', 'timestamp'], engine='python')
+        user_infos = pd.read_csv("data/" + config['dataset'] + "/" + "user.dat", sep=",", header=None, 
+                                 names=['uid', 'tag'], engine='python')
+    elif config['dataset'] == "kuai-small":
+        rating = pd.read_csv(dataset_dir, sep=",", header=None, names=['uid', 'mid', 'rating', 'timestamp'], engine='python')
+        # user_id,user_active_degree,is_lowactive_period,is_live_streamer,is_video_author,follow_user_num,
+        # follow_user_num_range,fans_user_num,fans_user_num_range,friend_user_num,friend_user_num_range,
+        # register_days,register_days_range,onehot_feat0,onehot_feat1,onehot_feat2,onehot_feat3,onehot_feat4,
+        # onehot_feat5,onehot_feat6,onehot_feat7,onehot_feat8,onehot_feat9,onehot_feat10,onehot_feat11,onehot_feat12,
+        # onehot_feat13,onehot_feat14,onehot_feat15,onehot_feat16,onehot_feat17
+        user_infos = pd.read_csv("data/" + config['dataset'] + "/" + "u.user",  sep=",", header=None, 
+                                 names=['uid', 'user_active_degree', 'is_lowactive_period', 
+                                        'is_live_streamer', 'is_video_author', 'follow_user_num', 
+                                        'follow_user_num_range', 'fans_user_num', 'fans_user_num_range', 
+                                        'friend_user_num', 'friend_user_num_range', 'register_days',
+                                          'register_days_range', 'onehot_feat0', 'onehot_feat1', 'onehot_feat2',
+                                            'onehot_feat3', 'onehot_feat4', 'onehot_feat5', 'onehot_feat6',
+                                            'onehot_feat7', 'onehot_feat8', 'onehot_feat9', 'onehot_feat10', 
+                                            'onehot_feat11', 'onehot_feat12', 'onehot_feat13', 'onehot_feat14',
+                                            'onehot_feat15', 'onehot_feat16', 'onehot_feat17'], engine='python')
+        
+
+    elif config['dataset'] == "douban":
+        rating = pd.read_csv(dataset_dir, sep=",", header=None, names=['uid', 'mid', 'rating', 'timestamp'], engine='python')
+        user_infos = pd.read_csv("data/" + config['dataset'] + "/" + "user.dat", sep=",", 
+                                 header=None, 
+                                 names=['uid', 'from', 'join time', 'self introduction'], 
+                                 engine='python')
+
+    elif config['dataset'] == "amazon":
+        rating = pd.read_csv(dataset_dir, sep=",", header=None, names=['uid', 'mid', 'rating', 'timestamp'], engine='python')
+        rating = rating.sort_values(by='uid', ascending=True)
+    
+    else:
+        pass
+    # Reindex
+    user_id = rating[['uid']].drop_duplicates().reindex()
+    user_id['userId'] = np.arange(len(user_id))
+    rating = pd.merge(rating, user_id, on=['uid'], how='left')
+    item_id = rating[['mid']].drop_duplicates()
+    item_id['itemId'] = np.arange(len(item_id))
+    rating = pd.merge(rating, item_id, on=['mid'], how='left')
+    rating = rating[['userId', 'itemId', 'rating', 'timestamp']]
+    print('Range of userId is [{}, {}]'.format(rating.userId.min(), rating.userId.max()))
+    print('Range of itemId is [{}, {}]'.format(rating.itemId.min(), rating.itemId.max()))
+    print('-' * 80)
+    print('Data Loading Done !')
+
+    # DataLoader for training
+    sample_generator = SampleGenerator(ratings=rating)
+    validate_data = sample_generator.validate_data
+    test_data = sample_generator.test_data
+    # np.save('model_parameter/' + str(config['ind']) + config['dataset'] + '-' + 'test_data-2.npy', test_data)
+    embeddingUtils = EmbeddingUtils(user_infos=user_infos,config=config,dataset=config['dataset'])
+    
+    hit_ratio_list = []
+    ndcg_list = []
+    val_hr_list = []
+    val_ndcg_list = []
+    train_loss_list = []
+    test_loss_list = []
+    val_loss_list = []
+    best_val_hr = 0
+    final_test_round = 0
+    for round in range(config['num_round']):
+        # break
+        print('-' * 80)
+        print('Round {} starts !'.format(round))
+
+        all_train_data = sample_generator.store_all_train_data(config['num_negative'])
+        print('-' * 80)
+        print('Training phase!')
+        tr_loss = engine.fed_train_a_round(all_train_data, round_id=round,embeddingUtils=embeddingUtils)
+        # break
+        train_loss_list.append(tr_loss)
+
+        print('-' * 80)
+        print('Testing phase!')
+        hit_ratio, ndcg, te_loss = engine.fed_evaluate(test_data,embeddingUtils)
+        test_loss_list.append(te_loss)
+        # break
+        print('[Testing Epoch {}] HR = {:.4f}, NDCG = {:.4f}'.format(round, hit_ratio, ndcg))
+        hit_ratio_list.append(hit_ratio)
+        ndcg_list.append(ndcg)
+
+        print('-' * 80)
+        print('Validating phase!')
+        val_hit_ratio, val_ndcg, v_loss = engine.fed_evaluate(validate_data,embeddingUtils)
+        val_loss_list.append(v_loss)
+        print(
+            '[Evluating Epoch {}] HR = {:.4f}, NDCG = {:.4f}'.format(round, val_hit_ratio, val_ndcg))
+        val_hr_list.append(val_hit_ratio)
+        val_ndcg_list.append(val_ndcg)
+
+        if val_hit_ratio >= best_val_hr:
+            best_val_hr = val_hit_ratio
+            final_test_round = round
+            # np.save('model_parameter/' + str(config['ind']) + config['dataset'] + '-' + 'client_param-2.npy', engine.client_model_params)
+
+
+    current_time = datetime.datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+    result_str = current_time + '-' + 'layers: ' + str(config['layers']) + '-' + 'lr: ' + str(config['lr']) + '-' + \
+        'clients_sample_ratio: ' + str(config['clients_sample_ratio']) + '-' + 'num_round: ' + str(config['num_round']) \
+        + '-' 'neighborhood_size: ' + str(config['neighborhood_size']) + '-' + 'mp_layers: ' + str(config['mp_layers']) \
+        + '-' + 'negatives: ' + str(config['num_negative']) + '-' + 'lr_eta: ' + str(config['lr_eta']) + '-' + \
+        'batch_size: ' + str(config['batch_size']) + '-' + 'hr: ' + str(hit_ratio_list[final_test_round]) + '-' \
+        + 'ndcg: ' + str(ndcg_list[final_test_round]) + '-' + 'best_round: ' + str(final_test_round) + '-' + \
+        'similarity_metric: ' + str(config['similarity_metric']) + '-' + 'neighborhood_threshold: ' + \
+        str(config['neighborhood_threshold']) + '-' + 'reg: ' + str(config['reg']) + '-' + 'ps: ' + str(config['ps']) + \
+        '-' + 'construct_graph_source: ' + str(config['construct_graph_source']) + '-' + 'dataset: ' + str(config['dataset'])
+    file_name = "sh_result/"+config['construct_graph_source']+'-'+config['dataset']+".txt"
+    with open(file_name, 'a') as file:
+        file.write(result_str + '\n')
+
+    print(config['alias'])
+    print('clients_sample_ratio: {}, lr_eta: {}, bz: {}, lr: {}, dataset: {}, layers: {}, negatives: {}, '
+                'neighborhood_size: {}, neighborhood_threshold: {}, mp_layers: {}, similarity_metric: {}, '
+                'construct_graph_source : {}'.
+                format(config['clients_sample_ratio'], config['lr_eta'], config['batch_size'], config['lr'],
+                        config['dataset'], config['layers'], config['num_negative'], config['neighborhood_size'],
+                        config['neighborhood_threshold'], config['mp_layers'], config['similarity_metric'],
+                        config['construct_graph_source']))
+    
+    print('hit_list: {}'.format(hit_ratio_list))
+    print('ndcg_list: {}'.format(ndcg_list))
+    print('val_hr_list: {}'.format(val_hr_list))
+    print('val_ndcg_list: {}'.format(val_ndcg_list))
+
+
+
+
+    
+    # 关闭日志文件
+
+    return "model:" + config['alias'] + "\n" + "dataset:" + config['dataset'] + "\n" + "use_kan" + str(config['use_kan']) + "\n" + "dataset" + config['dataset']  + "\n" + "hit_ratio_list" + str(hit_ratio_list) + "\n" +"ndcg_list" + str(ndcg_list) + "\n" + "val_hr_list" + str(val_hr_list) + "\n" + "val_ndcg_list" + str(val_ndcg_list) + "\n" + "best_val_hr" + str(best_val_hr) + "\n" + "strs" + result_str
+
+premodels = [
+    "MiniLM-L6"
+]
+
+
+latent_dims = [
+    32
+]
+
+mylayers = [
+    "64,32,16,8",
+]
+
+
+
+
+
+use_jointembeddings = [
+    True
+]
+use_transfermers = [
+    True
+]
+dps = [
+    0
+]
+models =['fedgraph-trankan']
+use_kans = [False
+           ]
+datasets = [ "100k"] # 'fedgraph-trankan-lite','fedgraph-trankan', 'fedgraph', fedgraph-trankan',
+for premodel in premodels:
+    config['pre_model'] = premodel
+    print(config['pre_model'])
+    if premodel == 'MiniLM-L6':
+        config['embed_dim'] = 384
+    elif premodel == 'USE':
+        config['embed_dim'] = 100
+
+    for layer in mylayers:
+        config['layers'] = layer
+        for latent_dim in latent_dims:
+            config['latent_dim'] = latent_dim
+            if latent_dim == 16:
+                config['layers'] = "32,16,8,4"
+                print('layers:{}'.format(config['layers']))
+            elif latent_dim == 32:
+                print('layers:{}'.format(config['layers']))
+            elif latent_dim == 64:
+                config['layers'] = "128,64,32,16"
+                print('layers:{}'.format(config['layers']))
+            elif latent_dim == 128:
+
+                config['layers'] = "256,128,64,32"
+                print('layers:{}'.format(config['layers']))
+            else:
+                config['layers'] = "512,256,128,64"
+            
+            for dp in dps:
+                config['dp'] = dp
+                print('dp:{}'.format(dp))
+                for model in models:
+                    if model == 'fedgraph-trankan':
+                        for use_transfermer in use_transfermers:
+                            config['use_transfermer'] = use_transfermer
+                            for use_jointembedding in use_jointembeddings:
+                                config['use_jointembedding'] = use_jointembedding
+                                for dataset in datasets:
+                                    for use_kan in use_kans:
+                                        config['alias'] = model
+                                        config['dataset'] = dataset
+                                        config['use_kan'] = use_kan
+                                        config['update_round'] = 1
+                                        res = train(config=config)
+                                        # 保存文件 res/{}-{}-{}.txt pre_model
+                                        with open("res/"+"pre_model-" + str(premodel)+"layers-" + str(layer)+"latent_dim-" + str(latent_dim)+"use_jointembedding-" + str(use_jointembedding)+"use_transfermer-" + str(use_transfermer)+ "dp-" + str(dp) + model + "-" + dataset + "use_kan-" + str(use_kan) + ".json", "w") as f:
+                                            f.write(res+"\n")
+                        
+                    elif model == 'fedgraph-trankan-lite':
+                        print('fedgraph-trankan-lite')
+                        for use_transfermer in use_transfermers:
+                            config['use_transfermer'] = use_transfermer
+                            for dataset in datasets:
+                                for use_kan in use_kans:
+                                    
+                                    config['alias'] = 'fedgraph-trankan'
+                                    config['dataset'] = dataset
+                                    config['use_kan'] = use_kan
+                                    config['update_round'] = 10
+
+                                    print('model: {}, dataset: {}, use_kan: {}'.format(model, dataset, use_kan))
+                                    print('update_round:{}'.format(config['update_round']) )
+                                    res = train(config=config)
+                                    # 保存文件 res/{}-{}-{}.⌘
+                                    with open("res/"+"pre_model-" + str(premodel)+"layers-" + "layers-" + str(layer)+"latent_dim-" + str(latent_dim)+"use_jointembedding-" + str(use_jointembedding)+"use_transfermer-" + str(use_transfermer)+ "dp-" + str(dp) + model + "-" + dataset + "use_kan-" + str(use_kan) + ".json", "w") as f:
+                                        f.write(res+"\n")
+                        
+
+                    elif model == 'fedgraph' :
+                        for dataset in datasets:
+                        
+                            config['alias'] = model
+                            config['dataset'] = dataset
+                            config['use_kan'] = False
+                            res = train(config=config)
+                            # 保存文件 res/{}-{}-{}.txt
+                            with open("res/"+"pre_model-" + str(premodel)+"layers-" + "layers-" + str(layer)+"latent_dim-" + str(latent_dim)+ "dp-" + str(dp) + model + "-" + dataset + ".json", "w") as f:
+                                f.write(res+"\n")
+                
+
+
+train(config=config)

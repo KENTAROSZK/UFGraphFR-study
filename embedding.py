@@ -1,0 +1,108 @@
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import text
+import pandas as pd
+import numpy as np
+import torch
+from sentence_transformers import SentenceTransformer
+
+class EmbeddingUtils():
+    def __init__(self,config,user_infos,dataset):
+        self.config = config
+
+        if config['pre_model'] == "USE":
+            model_path = "universal_sentence_encoder.tflite"
+            BaseOptions = mp.tasks.BaseOptions
+            TextEmbedder = mp.tasks.text.TextEmbedder
+            TextEmbedderOptions = mp.tasks.text.TextEmbedderOptions
+            # For creating a text embedder instance:
+            options = TextEmbedderOptions(
+                base_options=BaseOptions(model_asset_path=model_path),
+                quantize=False)
+            self.embedder = TextEmbedder.create_from_options(options)
+        
+        elif config['pre_model'] == "MiniLM-L6":
+            self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+        self.user_infos = user_infos
+        self.dataset = dataset
+
+    def embedding_users(self,user_id):
+        user = None
+        prompts = None
+        if self.dataset == "ml-1m":
+            user = self.user_infos[self.user_infos['uid'] == user_id]
+            prompts = "The user'id is {} and his gender is {}, he is {} years old, works in the field of {} and lives at zip code {}".format(user["uid"], user["gender"], user["age"], user["occupation"], user["zipcode"])
+        elif self.dataset == "100k":
+            user = self.user_infos[self.user_infos['uid'] == user_id]
+            prompts = "The user'id is {} and his gender is {}, he is {} years old, works in the field of {} and lives at zip code {}".format(user["uid"], user["gender"], user["age"], user["occupation"], user["zipcode"])
+           
+        elif self.dataset == "kuai-small":
+            user = self.user_infos[self.user_infos['uid'] == user_id]
+            # user_id,user_active_degree,is_lowactive_period,is_live_streamer,is_video_author,follow_user_num,
+            # follow_user_num_range,fans_user_num,fans_user_num_range,friend_user_num,friend_user_num_range,
+            # register_days,register_days_range,onehot_feat0,onehot_feat1,onehot_feat2,onehot_feat3,onehot_feat4,
+            # onehot_feat5,onehot_feat6,onehot_feat7,onehot_feat8,onehot_feat9,onehot_feat10,onehot_feat11,onehot_feat12,
+            # onehot_feat13,onehot_feat14,onehot_feat15,onehot_feat16,onehot_feat17
+            # user_infos = pd.read_csv("data/" + config['dataset'] + "/" + "user_info.txt", sep=",", header=None, 
+            #                     names=['uid', 'user_active_degree', 'is_lowactive_period', 
+            #                            'is_live_streamer', 'is_video_author', 'follow_user_num', 
+            #                            'follow_user_num_range', 'fans_user_num', 'fans_user_num_range', 
+            #                            'friend_user_num', 'friend_user_num_range', 'register_days',
+            #                              'register_days_range', 'onehot_feat0', 'onehot_feat1', 'onehot_feat2',
+            #                                'onehot_feat3', 'onehot_feat4', 'onehot_feat5', 'onehot_feat6',
+            #                                'onehot_feat7', 'onehot_feat8', 'onehot_feat9', 'onehot_feat10', 
+            #                                'onehot_feat11', 'onehot_feat12', 'onehot_feat13', 'onehot_feat14',
+            #                                'onehot_feat15', 'onehot_feat16', 'onehot_feat17'], engine='python')
+            # 转为 json
+            sx = ['uid', 'user_active_degree', 'is_lowactive_period', 
+                                        'is_live_streamer', 'is_video_author', 'follow_user_num', 
+                                        'follow_user_num_range', 'fans_user_num', 'fans_user_num_range', 
+                                        'friend_user_num', 'friend_user_num_range', 'register_days',
+                                          'register_days_range', 'onehot_feat0', 'onehot_feat1', 'onehot_feat2',
+                                            'onehot_feat3', 'onehot_feat4', 'onehot_feat5', 'onehot_feat6',
+                                            'onehot_feat7', 'onehot_feat8', 'onehot_feat9', 'onehot_feat10', 
+                                            'onehot_feat11', 'onehot_feat12', 'onehot_feat13', 'onehot_feat14',
+                                            'onehot_feat15', 'onehot_feat16', 'onehot_feat17']
+            prompts = ""
+            mb = "The user's {} is {}. "
+            for i in range(len(sx)):
+                prompts += mb.format(sx[i], user[sx[i]])       
+        elif self.dataset == "douban":
+            user = self.user_infos[self.user_infos['uid'] == user_id]
+            # 'uid', 'from', 'join time', 'self introduction'
+            prompts = "The user'id is {} and his is from {}, he join the douban at {}, his self-introduction is {}.".format(user["uid"], user["from"], user["join time"], user["self introduction"])
+            embeds = self.embedder.embed(prompts)
+            return torch.tensor(embeds.embeddings[0].embedding)
+        elif self.dataset == "lastfm-2k":
+            user = self.user_infos[self.user_infos['uid'] == user_id]
+            # user_id,user_active_degree,is_lowactive_period,is_live_streamer,is_video_author,follow_user_num,
+            # follow_user_num_range,fans_user_num,fans_user_num_range,friend_user_num,friend_user_num_range,
+            # register_
+            prompts = "The user'id is {} and his look {} items".format(user["uid"], user["tag"])
+            embeds = self.embedder.embed(prompts)
+            return torch.tensor(embeds.embeddings[0].embedding)
+        elif self.dataset == "hetres-2k":
+            user = self.user_infos[self.user_infos['uid'] == user_id]
+            # user_id,user_active_degree,is_lowactive_period,is_live_streamer,is_video_author,follow_user_num,
+            # follow_user_num_range,fans_user_num,fans_user_num_range,friend_user_num,friend_user_num_range,
+            # register_
+            prompts = "The user'id is {} and his look {} items".format(user["uid"], user["tag"])
+        
+        if self.config['pre_model'] == "USE":
+            embeds = self.embedder.embed(prompts)
+            return torch.tensor(embeds.embeddings[0].embedding)
+        elif self.config['pre_model'] == "MiniLM-L6":
+            embeds = self.embedder.encode([prompts])
+            return torch.tensor(embeds[0])
+
+    
+
+
+
+if __name__ == "__main__":
+    infinity_api_url = "http://api.wlai.vip/v1"
+    embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    promptes="The user'id is 1 and his gender is Male, he is 20 years old, works in the field of 1 and lives at zip code 1"
+    r =   embedder.encode([promptes])
+    print(r[0].shape)
+        
