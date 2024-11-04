@@ -5,139 +5,6 @@ import torch.nn.functional as F
 import math
 from typing import *
 
-class SplineLinear(nn.Linear):
-    def __init__(self, in_features: int, out_features: int, init_scale: float = 0.1, **kw) -> None:
-        self.init_scale = init_scale
-        super().__init__(in_features, out_features, bias=False, **kw)
-
-    def reset_parameters(self) -> None:
-        nn.init.trunc_normal_(self.weight, mean=0, std=self.init_scale)
-class RadialBasisFunction(nn.Module):
-    def __init__(
-        self,
-        grid_min: float = -2.,
-        grid_max: float = 2.,
-        num_grids: int = 8,
-        denominator: float = None,  # larger denominators lead to smoother basis
-    ):
-        super().__init__()
-        self.grid_min = grid_min
-        self.grid_max = grid_max
-        self.num_grids = num_grids
-        grid = torch.linspace(grid_min, grid_max, num_grids)
-        self.grid = torch.nn.Parameter(grid, requires_grad=False)
-        self.denominator = denominator or (grid_max - grid_min) / (num_grids - 1)
-
-    def forward(self, x):
-        return torch.exp(-((x[..., None] - self.grid) / self.denominator) ** 2)
-def fast_fft(x):
-    return torch.fft.fft(x, dim=-1)
-class FastKANLayer(nn.Module):
-    def __init__(
-        self,
-        input_dim: int,
-        output_dim: int,
-        grid_min: float = -2.,
-        grid_max: float = 2.,
-        num_grids: int = 8,
-        use_base_update: bool = True,
-        use_layernorm: bool = True,
-        base_activation = F.silu,
-        spline_weight_init_scale: float = 0.1,
-    ) -> None:
-        super().__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.layernorm = None
-        if use_layernorm:
-            assert input_dim > 1, "Do not use layernorms on 1D inputs. Set `use_layernorm=False`."
-            self.layernorm = nn.LayerNorm(input_dim)
-        self.rbf = RadialBasisFunction(grid_min, grid_max, num_grids)
-        self.spline_linear = SplineLinear(input_dim * num_grids, output_dim, spline_weight_init_scale)
-        self.use_base_update = use_base_update
-        if use_base_update:
-            self.base_activation = base_activation
-            self.base_linear = nn.Linear(input_dim, output_dim)
-
-    def forward(self, x, use_layernorm=True):
-        if self.layernorm is not None and use_layernorm:
-            spline_basis = self.rbf(self.layernorm(x))
-        else:
-            spline_basis = self.rbf(x)
-        ret = self.spline_linear(spline_basis.view(*spline_basis.shape[:-2], -1))
-        if self.use_base_update:
-            base = self.base_linear(self.base_activation(x))
-            ret = ret + base
-        return ret
-
-    def plot_curve(
-        self,
-        input_index: int,
-        output_index: int,
-        num_pts: int = 1000,
-        num_extrapolate_bins: int = 2
-    ):
-        '''this function returns the learned curves in a FastKANLayer.
-        input_index: the selected index of the input, in [0, input_dim) .
-        output_index: the selected index of the output, in [0, output_dim) .
-        num_pts: num of points sampled for the curve.
-        num_extrapolate_bins (N_e): num of bins extrapolating from the given grids. The curve 
-            will be calculate in the range of [grid_min - h * N_e, grid_max + h * N_e].
-        '''
-        ng = self.rbf.num_grids
-        h = self.rbf.denominator
-        assert input_index < self.input_dim
-        assert output_index < self.output_dim
-        w = self.spline_linear.weight[
-            output_index, input_index * ng : (input_index + 1) * ng
-        ]   # num_grids,
-        x = torch.linspace(
-            self.rbf.grid_min - num_extrapolate_bins * h,
-            self.rbf.grid_max + num_extrapolate_bins * h,
-            num_pts
-        )   # num_pts, num_grids
-        with torch.no_grad():
-            y = (w * self.rbf(x.to(w.dtype))).sum(-1)
-        return x, y
-
-
-class TemporalEmbedding(nn.Module):
-    def __init__(self, d_model, embed_type='fixed', freq='h'):
-        super(TemporalEmbedding, self).__init__()
-
-        minute_size = 4
-        hour_size = 24
-        weekday_size = 7
-        day_size = 32
-        month_size = 13
-
-        Embed = nn.Embedding
-        if freq == 't':
-            self.minute_embed = Embed(minute_size, d_model)
-        self.hour_embed = Embed(hour_size, d_model)
-        self.weekday_embed = Embed(weekday_size, d_model)
-        self.day_embed = Embed(day_size, d_model)
-        self.month_embed = Embed(month_size, d_model)
-
-    def forward(self, x):
-        x = x.long()
-        # 获取时间戳的时分年月日
-        # 1000ms = 1s , 60s = 1min , 60 min = 60 * 60 * 1000ms = 3600000ms = 1h ,
-        # 24h = 24 * 60 * 60 * 1000ms = 86400000ms = 1d , 365d = 36
-        minute = x%60000
-        hour = (x//60000)%24
-        weekday = (x//86400000)%7
-        day = (x//86400000)%31
-        month = (x//2629800000)%12
-        minute_x = self.minute_embed(minute) if hasattr(self, 'minute_embed') else 0
-        hour_x = self.hour_embed(hour)
-        weekday_x = self.weekday_embed(weekday)
-        day_x = self.day_embed(day)
-        month_x = self.month_embed(month)
-
-        
-
-        return hour_x + weekday_x + day_x + month_x + minute_x
 class CommonMLP(torch.nn.Module):
     def __init__(self, input_dim, output_dim,layers=[]):
         super(CommonMLP, self).__init__()
@@ -161,23 +28,13 @@ class FastKAN(torch.nn.Module):
     def __init__(
         self,
         config,
-        spline_order=3,
-        scale_noise=0.1,
-        scale_base=1.0,
-        scale_spline=1.0,
-        base_activation=torch.nn.Tanh, # 这个是：base_activation=torch.nn.SiLU ， SiLU是一个激活函数，可以调整
-        grid_eps=0.02,  # 这个是：grid_eps=0.02 ， 0.02是一个超参数，可以调整，作用是：Kan的grid更新的时候，会有一个eps的扰动，这个扰动是为了防止grid更新的时候，出现过拟合的情况
-        grid_range=[-1, 1],
     ):
         super(FastKAN, self).__init__()
         self.config = config
         self.num_users = config['num_users']  # 用户数
         self.num_items = config['num_items']  # 物品数
         self.latent_dim = config['latent_dim']  # 潜在维度
-        layers_hidden = config['layers']
-        self.grid_size = config['grid_size']
-        grid_size = self.grid_size
-        self.spline_order = spline_order
+  
 
         # self.embedding_user = torch.nn.Embedding(num_embeddings=1, embedding_dim=self.latent_dim)
         # 用户嵌入
@@ -270,7 +127,6 @@ class FastKAN(torch.nn.Module):
         # user_embedding = self.embedding_user(users)
         # time_embedding = self.embedding_time(item_time)
         if self.config['use_transfermer']:
-            
             item_embedding = self.multheadAttention_layer(
                 item_embedding,item_embedding,item_embedding,mask=None) 
         user_embedding = self.user_mlp(user_embedding)
@@ -286,6 +142,7 @@ class FastKAN(torch.nn.Module):
             layer.regularization_loss(regularize_activation, regularize_entropy)
             for layer in self.fc_layers
         )
+
 import mlp as mlp
 class MultiheadAttention(nn.Module):
     # n_heads：多头注意力的数量
@@ -377,26 +234,7 @@ class TransformerBlockKan(nn.Module):
         self.norm1 = nn.LayerNorm(input_dim)
         self.norm2 = nn.LayerNorm(input_dim)
         self.feed_forward = None
-        if use_kan == True:
-            self.feed_forward = nn.Sequential(
-                FastKANLayer(
-                        input_dim,
-                        input_dim * 2,
-                        grid_max=3,
-                        grid_min=-3,
-                        base_activation = F.tanh,
-                    ),
-                    # FastKANLayer(embed_size, forward_expansion * embed_size),
-                    # nn.ReLU(),
-                FastKANLayer(
-                        input_dim * 2,
-                        output_dim,
-                        grid_max=3,
-                        grid_min=-3,
-                        base_activation = F.tanh,
-                    )  
-            )
-        else:
+        if use_kan ==   False:
             self.feed_forward = nn.Sequential(
                 nn.Linear(input_dim, input_dim*2),
                 nn.ReLU(),

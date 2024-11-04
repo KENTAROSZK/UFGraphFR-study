@@ -19,7 +19,7 @@ from utils import *
 # Training settings
 parser = argparse.ArgumentParser()
 parser.add_argument('--alias', type=str, default='UFGraphFR')
-parser.add_argument('--use_kan', type=bool, default=True)
+parser.add_argument('--use_kan', type=bool, default=False)
 parser.add_argument('--clients_sample_ratio', type=float, default=1.0)
 parser.add_argument('--clients_sample_num', type=int, default=0)
 parser.add_argument('--num_round', type=int, default=100)
