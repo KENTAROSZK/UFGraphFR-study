@@ -10,7 +10,7 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,2"
 import argparse
 from mlp import MLPEngine
-from mykan import FastKANEngine as KANEngine, FastKANWithOutTransfermerEngine as FKWTEngine
+from mykan import FastKANEngine as KANEngine
 
 from data import SampleGenerator
 from utils import *
@@ -18,7 +18,7 @@ from utils import *
 
 # Training settings
 parser = argparse.ArgumentParser()
-parser.add_argument('--alias', type=str, default='fedgraph-trankan')
+parser.add_argument('--alias', type=str, default='UFGraphFR')
 parser.add_argument('--use_kan', type=bool, default=True)
 parser.add_argument('--clients_sample_ratio', type=float, default=1.0)
 parser.add_argument('--clients_sample_num', type=int, default=0)
@@ -100,10 +100,8 @@ def train(config):
     else:
         pass
 
-    if config['alias'] == 'fedgraph-trankan' or config['alias'] == 'fedgraph-trankan-lite' or config['alias'] == 'fedgraph-trankan-pre':
+    if config['alias'] == 'UFGraphFR' or config['alias'] == 'UFGraphFR-lite' or config['alias'] == 'UFGraphFR-pre':
         engine = KANEngine(config)
-    elif config['alias'] == 'fedgraph-trankan-wot':
-        engine = FKWTEngine(config)
     else:
         engine = MLPEngine(config)
 
@@ -289,10 +287,10 @@ use_transfermers = [
 dps = [
     0
 ]
-models =['fedgraph-trankan']
+models =['UFGraphFR']
 use_kans = [False
            ]
-datasets = [ "100k"] # 'fedgraph-trankan-lite','fedgraph-trankan', 'fedgraph', fedgraph-trankan',
+datasets = [ "100k"] # 'UFGraphFR-lite','UFGraphFR', 'fedgraph', UFGraphFR',
 for premodel in premodels:
     config['pre_model'] = premodel
     print(config['pre_model'])
@@ -324,7 +322,7 @@ for premodel in premodels:
                 config['dp'] = dp
                 print('dp:{}'.format(dp))
                 for model in models:
-                    if model == 'fedgraph-trankan':
+                    if model == 'UFGraphFR':
                         for use_transfermer in use_transfermers:
                             config['use_transfermer'] = use_transfermer
                             for use_jointembedding in use_jointembeddings:
@@ -340,14 +338,14 @@ for premodel in premodels:
                                         with open("res/"+"pre_model-" + str(premodel)+"layers-" + str(layer)+"latent_dim-" + str(latent_dim)+"use_jointembedding-" + str(use_jointembedding)+"use_transfermer-" + str(use_transfermer)+ "dp-" + str(dp) + model + "-" + dataset + "use_kan-" + str(use_kan) + ".json", "w") as f:
                                             f.write(res+"\n")
                         
-                    elif model == 'fedgraph-trankan-lite':
-                        print('fedgraph-trankan-lite')
+                    elif model == 'UFGraphFR-lite':
+                        print('UFGraphFR-lite')
                         for use_transfermer in use_transfermers:
                             config['use_transfermer'] = use_transfermer
                             for dataset in datasets:
                                 for use_kan in use_kans:
                                     
-                                    config['alias'] = 'fedgraph-trankan'
+                                    config['alias'] = 'UFGraphFR'
                                     config['dataset'] = dataset
                                     config['use_kan'] = use_kan
                                     config['update_round'] = 10

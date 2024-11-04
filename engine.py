@@ -46,7 +46,7 @@ class Engine(object):
         users, items, ratings= batch_data[0], batch_data[1], batch_data[2]
         ratings = ratings.float()
 
-        reg_item_embedding = copy.deepcopy(self.server_model_param['embedding_item.weight'][user].data) if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot'  else copy.deepcopy(self.server_model_param['embedding_user.weight'][user].data)
+        reg_item_embedding = copy.deepcopy(self.server_model_param['embedding_item.weight'][user].data) if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot'  else copy.deepcopy(self.server_model_param['embedding_user.weight'][user].data)
 
         optimizer, optimizer_i, optimizer_u = optimizers
         
@@ -60,20 +60,20 @@ class Engine(object):
 
         optimizer.zero_grad()
         optimizer_i.zero_grad()            
-        if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-pre':
+        if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-pre':
             # optimizer_t.zero_grad()
             if self.config['use_jointembedding']:
                 optimizer_u.zero_grad()
             items = [items]
         ratings_pred = model_client.forward(items,user_embedding)
         loss = self.crit(ratings_pred.view(-1), ratings)
-        regularization_term = compute_regularization(model_client, reg_item_embedding) if self.config['alias'] == 'fedgraph-trankan' else compute_regularization2(model_client, reg_item_embedding)
+        regularization_term = compute_regularization(model_client, reg_item_embedding) if self.config['alias'] == 'UFGraphFR' else compute_regularization2(model_client, reg_item_embedding)
 
         loss += self.config['reg'] * regularization_term
         loss.backward()
         optimizer.step()
         optimizer_i.step()
-        if self.config['alias'] == 'fedgraph-trankan':
+        if self.config['alias'] == 'UFGraphFR':
             if self.config['use_jointembedding']:
                 optimizer_u.step()
         
@@ -84,9 +84,9 @@ class Engine(object):
         users, items, ratings= batch_data[0], batch_data[1], batch_data[2]
         ratings = ratings.float()
         reg_item_embedding = None
-        if self.config['alias'] == 'fedgraph-trankan':
+        if self.config['alias'] == 'UFGraphFR':
             reg_item_embedding = copy.deepcopy(self.server_model_param['embedding_item.weight'][user].data)
-        elif self.config['alias'] == 'fedgraph-trankan-pre':
+        elif self.config['alias'] == 'UFGraphFR-pre':
             reg_item_embedding = copy.deepcopy(self.server_model_param['embedding_user.weight'][user].data)
         else:
             reg_item_embedding = copy.deepcopy(self.server_model_param['embedding_item.weight'][user].data)
@@ -94,7 +94,7 @@ class Engine(object):
         # reg_item_embedding = copy.deepcopy(self.server_model_param['embedding_item.weight'][user].data)
         optimizer, optimizer_u, optimizer_i,optimizer_t = None,None,None,None
 
-        if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+        if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
             optimizer, optimizer_u, optimizer_i = optimizers
         else:
             optimizer, optimizer_u, optimizer_i = optimizers
@@ -105,7 +105,7 @@ class Engine(object):
         optimizer.zero_grad()
         optimizer_u.zero_grad()
         optimizer_i.zero_grad()            
-        if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+        if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
             # optimizer_t.zero_grad()
             items = [items]
         ratings_pred = model_client(items)
@@ -150,7 +150,7 @@ class Engine(object):
         topk_user_relation_graph = select_topk_neighboehood(self.user_relation_graph, self.config['neighborhood_size'],
                                                             self.config['neighborhood_threshold'])
         # update item embedding via message passing.
-        if self.config['alias'] == 'fedgraph-trankan-pre':
+        if self.config['alias'] == 'UFGraphFR-pre':
             updated_item_embedding = MP_on_graph_with_embedding_user(round_user_params, self.config['num_items'], self.config['latent_dim'],
                                                  topk_user_relation_graph, self.config['mp_layers'])
             self.server_model_param['embedding_user.weight'] = copy.deepcopy(updated_item_embedding)
@@ -174,7 +174,7 @@ class Engine(object):
             #self.server_model_param['embedding_item.weight'] = {}
             #for user in participants:
             #    self.server_model_param['embedding_item.weight'][user] = copy.deepcopy(self.model.state_dict()['embedding_item.weight'].data.cpu())
-            if self.config['alias'] == 'fedgraph-trankan-pre':
+            if self.config['alias'] == 'UFGraphFR-pre':
                 self.server_model_param['embedding_user.weight'] = {}
                 for user in participants:
                     self.server_model_param['embedding_user.weight'][user] = copy.deepcopy(self.model.state_dict()['embedding_user.weight'].data.cpu())
@@ -199,7 +199,7 @@ class Engine(object):
             # for other rounds, client models receive updated user embedding and aggregated item embedding from server
             # and use local updated mlp parameters from last round.
             if self.config['use_jointembedding']:
-                if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+                if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
                     if user not in user_embeddings.keys():
                         user_embeddings[user] = embeddingUtils.embedding_users(user)
             else:
@@ -208,7 +208,7 @@ class Engine(object):
             if round_id != 0:
                 # for participated users, load local updated parameters.
                 user_param_dict = copy.deepcopy(self.model.state_dict())
-                if self.config['alias'] == 'fedgraph-trankan-pre':
+                if self.config['alias'] == 'UFGraphFR-pre':
                     if user in self.client_model_params.keys():
                         for key in self.client_model_params[user].keys():
                             if self.config['use_cuda'] is True:
@@ -243,7 +243,7 @@ class Engine(object):
             optimizer_t = None
 
 
-            if self.config['alias'] == 'fedgraph-trankan' :
+            if self.config['alias'] == 'UFGraphFR' :
                 base_params = [
                       {"params": model_client.user_mlp.parameters()},
                       {"params": model_client.fc_layers.parameters()},
@@ -267,7 +267,7 @@ class Engine(object):
                                              self.config['lr'])  # Item optimizer\
             optimizers = []
 
-            if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+            if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
                 # optimizer_t = torch.optim.SGD(model_client.embedding_time.parameters(),
                 #                          lr=self.config['lr'] * self.config['num_items'] * self.config['lr_eta'] -
                 #                             self.config['lr'])  # Item optimizer\
@@ -291,7 +291,7 @@ class Engine(object):
                 for batch_id, batch in enumerate(user_dataloader):
                     assert isinstance(batch[0], torch.LongTensor)
                     loss = None
-                    if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+                    if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
 
                         model_client, loss = self.fed_train_single_batch_my(model_client, batch, optimizers, user, user_embeddings[user])
                     else:
@@ -311,7 +311,7 @@ class Engine(object):
             if self.config['dp'] > 0:
                 round_participant_params[user]['embedding_item.weight'] = round_participant_params[user]['embedding_item.weight'].view(-1)
             #round_participant_params[user]['embedding_item.weight'] += Laplace(0, self.config['dp']).expand(round_participant_params[user]['embedding_item.weight'].shape).sample()
-            if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+            if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
                 round_participant_params[user]['embedding_user.weight'] = copy.deepcopy(self.client_model_params[user]['embedding_user.weight'])
                 round_participant_params[user]['embedding_user.weight'] = round_participant_params[user]['embedding_user.weight'].view(-1)
                 if self.config['dp'] > 0:
@@ -319,7 +319,7 @@ class Engine(object):
 
                 #round_participant_params[user]['embedding_user.weight'] += Laplace(0, self.config['dp']).expand(round_participant_params[user]['embedding_user.weight'].shape).sample()
         # aggregate client models in server side.
-        if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+        if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
             self.aggregate_clients_params_user(round_participant_params,round=round_id)
         else:
             self.aggregate_clients_params(round_participant_params)
@@ -357,7 +357,7 @@ class Engine(object):
             user_model = copy.deepcopy(self.model)
             user_param_dict = copy.deepcopy(self.model.state_dict())
             if self.config['use_jointembedding']:
-                if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+                if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
                     user_embeddings[user] = embeddingUtils.embedding_users(user)
             else:
                 user_embeddings[user] = None
@@ -390,7 +390,7 @@ class Engine(object):
                 test_score = None
                 negative_score = None
 
-                if self.config['alias'] == 'fedgraph-trankan' or self.config['alias'] == 'fedgraph-trankan-wot':
+                if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot':
                     test_item = [test_item]
                     negative_item = [negative_item]
                     test_score = user_model(test_item,user_embeddings[user])
