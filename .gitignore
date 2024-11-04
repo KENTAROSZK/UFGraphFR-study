@@ -9,3 +9,5 @@ mf*.csv
 data/douban/
 data/kuai-small/
 __pycache__/
+.gitignore
+.DS_Store
