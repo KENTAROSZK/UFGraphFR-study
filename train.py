@@ -45,7 +45,6 @@ parser.add_argument('--dp', type=float, default=0.1)
 parser.add_argument('--use_cuda', type=bool, default=False)
 parser.add_argument('--use_mps', type=bool, default=False)
 parser.add_argument('--use_transfermer', type=bool, default=True)
-
 parser.add_argument('--use_jointembedding', type=bool, default=True)
 
 parser.add_argument('--device_id', type=int, default=0)
@@ -252,7 +251,14 @@ def train(config):
     print('ndcg_list: {}'.format(ndcg_list))
     print('val_hr_list: {}'.format(val_hr_list))
     print('val_ndcg_list: {}'.format(val_ndcg_list))
-
+    with open("res/"+"pre_model-" + str(config['pre_model'])+
+              "layers-" + "layers-" + str(config['layers'])+
+              "latent_dim-" + str(config['latent_dim'])+
+              "use_jointembedding-" + str(config['use_jointembedding'])+
+              "use_transfermer-" + str(config['use_transfermer'])+ 
+              "dp-" + str(config['dp']) + model + "-" + dataset + 
+              "use_kan-" + str(config['use_kan']) + ".json", "w") as f:
+                                        f.write(res+"\n")
 
 
 
@@ -261,114 +267,5 @@ def train(config):
 
     return "model:" + config['alias'] + "\n" + "dataset:" + config['dataset'] + "\n" + "use_kan" + str(config['use_kan']) + "\n" + "dataset" + config['dataset']  + "\n" + "hit_ratio_list" + str(hit_ratio_list) + "\n" +"ndcg_list" + str(ndcg_list) + "\n" + "val_hr_list" + str(val_hr_list) + "\n" + "val_ndcg_list" + str(val_ndcg_list) + "\n" + "best_val_hr" + str(best_val_hr) + "\n" + "strs" + result_str
 
-premodels = [
-    "MiniLM-L6"
-]
-
-
-latent_dims = [
-    32
-]
-
-mylayers = [
-    "64,32,16,8",
-]
-
-
-
-
-
-use_jointembeddings = [
-    True
-]
-use_transfermers = [
-    True
-]
-dps = [
-    0
-]
-models =['UFGraphFR']
-use_kans = [False
-           ]
-datasets = [ "100k"] # 'UFGraphFR-lite','UFGraphFR', 'fedgraph', UFGraphFR',
-for premodel in premodels:
-    config['pre_model'] = premodel
-    print(config['pre_model'])
-    if premodel == 'MiniLM-L6':
-        config['embed_dim'] = 384
-    elif premodel == 'USE':
-        config['embed_dim'] = 100
-
-    for layer in mylayers:
-        config['layers'] = layer
-        for latent_dim in latent_dims:
-            config['latent_dim'] = latent_dim
-            if latent_dim == 16:
-                config['layers'] = "32,16,8,4"
-                print('layers:{}'.format(config['layers']))
-            elif latent_dim == 32:
-                print('layers:{}'.format(config['layers']))
-            elif latent_dim == 64:
-                config['layers'] = "128,64,32,16"
-                print('layers:{}'.format(config['layers']))
-            elif latent_dim == 128:
-
-                config['layers'] = "256,128,64,32"
-                print('layers:{}'.format(config['layers']))
-            else:
-                config['layers'] = "512,256,128,64"
-            
-            for dp in dps:
-                config['dp'] = dp
-                print('dp:{}'.format(dp))
-                for model in models:
-                    if model == 'UFGraphFR':
-                        for use_transfermer in use_transfermers:
-                            config['use_transfermer'] = use_transfermer
-                            for use_jointembedding in use_jointembeddings:
-                                config['use_jointembedding'] = use_jointembedding
-                                for dataset in datasets:
-                                    for use_kan in use_kans:
-                                        config['alias'] = model
-                                        config['dataset'] = dataset
-                                        config['use_kan'] = use_kan
-                                        config['update_round'] = 1
-                                        res = train(config=config)
-                                        # 保存文件 res/{}-{}-{}.txt pre_model
-                                        with open("res/"+"pre_model-" + str(premodel)+"layers-" + str(layer)+"latent_dim-" + str(latent_dim)+"use_jointembedding-" + str(use_jointembedding)+"use_transfermer-" + str(use_transfermer)+ "dp-" + str(dp) + model + "-" + dataset + "use_kan-" + str(use_kan) + ".json", "w") as f:
-                                            f.write(res+"\n")
-                        
-                    elif model == 'UFGraphFR-lite':
-                        print('UFGraphFR-lite')
-                        for use_transfermer in use_transfermers:
-                            config['use_transfermer'] = use_transfermer
-                            for dataset in datasets:
-                                for use_kan in use_kans:
-                                    
-                                    config['alias'] = 'UFGraphFR'
-                                    config['dataset'] = dataset
-                                    config['use_kan'] = use_kan
-                                    config['update_round'] = 10
-
-                                    print('model: {}, dataset: {}, use_kan: {}'.format(model, dataset, use_kan))
-                                    print('update_round:{}'.format(config['update_round']) )
-                                    res = train(config=config)
-                                    # 保存文件 res/{}-{}-{}.⌘
-                                    with open("res/"+"pre_model-" + str(premodel)+"layers-" + "layers-" + str(layer)+"latent_dim-" + str(latent_dim)+"use_jointembedding-" + str(use_jointembedding)+"use_transfermer-" + str(use_transfermer)+ "dp-" + str(dp) + model + "-" + dataset + "use_kan-" + str(use_kan) + ".json", "w") as f:
-                                        f.write(res+"\n")
-                        
-
-                    elif model == 'fedgraph' :
-                        for dataset in datasets:
-                        
-                            config['alias'] = model
-                            config['dataset'] = dataset
-                            config['use_kan'] = False
-                            res = train(config=config)
-                            # 保存文件 res/{}-{}-{}.txt
-                            with open("res/"+"pre_model-" + str(premodel)+"layers-" + "layers-" + str(layer)+"latent_dim-" + str(latent_dim)+ "dp-" + str(dp) + model + "-" + dataset + ".json", "w") as f:
-                                f.write(res+"\n")
-                
-
-
-train(config=config)
+if __name__ == "__main__":
+    train(config)

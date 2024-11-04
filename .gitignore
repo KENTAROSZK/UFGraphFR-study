@@ -11,3 +11,4 @@ data/kuai-small/
 __pycache__/
 .gitignore
 .DS_Store
+train_*.py
