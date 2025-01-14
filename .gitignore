@@ -13,3 +13,6 @@ __pycache__/
 .gitignore
 .DS_Store
 train_*.py
+mf100k.json
+scatter_plot.png
+*.json
