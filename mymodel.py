@@ -24,12 +24,12 @@ class CommonMLP(torch.nn.Module):
             vector = layer(vector)
         vector = self.output_layer(vector)
         return self.sigmoid(vector)
-class FastKAN(torch.nn.Module):
+class UFGraphFR(torch.nn.Module):
     def __init__(
         self,
         config,
     ):
-        super(FastKAN, self).__init__()
+        super(UFGraphFR, self).__init__()
         self.config = config
         self.num_users = config['num_users']  # 用户数
         self.num_items = config['num_items']  # 物品数
@@ -262,10 +262,10 @@ class TransformerBlockKan(nn.Module):
 
 import engine as engine
 import utils as utils
-class FastKANEngine(engine.Engine):
+class UFGraphFREngine(engine.Engine):
     """Engine for training & evaluating GMF model"""
     def __init__(self, config):
-        self.model = FastKAN(config)
+        self.model = UFGraphFR(config)
         if config['use_cuda'] is True:
             utils.use_cuda(True, config['device_id'])
             self.model
@@ -275,7 +275,7 @@ class FastKANEngine(engine.Engine):
             self.model = self.model.to(device)
         else:
             config['device'] = torch.device('cpu')
-        super(FastKANEngine, self).__init__(config)
+        super(UFGraphFREngine, self).__init__(config)
         print(self.model)
 
         

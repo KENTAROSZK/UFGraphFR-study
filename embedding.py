@@ -7,7 +7,26 @@ import torch
 from sentence_transformers import SentenceTransformer
 
 class EmbeddingUtils():
-    def __init__(self,config,user_infos,dataset):
+    def embedding_uder_info(self,user_info):
+        if self.config['pre_model'] == "USE":
+            user_emb = self.embedder.embed(user_info)[0]
+            return user_emb
+        pass
+    def embedding_dataset(self,user_infos,item_infos):
+        if self.config['pre_model'] == "USE":
+            # 创建一个 config['item_num'] * config['item_dim'] 的矩阵，每个元素都是 0
+            user_emb = np.zeros((len(user_infos), self.config['embed_dim']))
+            item_emb = np.zeros((len(item_infos), self.config['embed_dim']))
+            for i in range(len(user_infos)):
+                user_emb[i] = self.embedder.embed(user_infos[i])[0]
+
+            for i in range(len(item_infos)):
+                item_emb[i] = self.embedder.embed(item_infos[i])[0]
+
+
+            return  user_emb, item_emb
+
+    def __init__(self,config,user_infos,dataset,item_infos):
         self.config = config
 
         if config['pre_model'] == "USE":
@@ -20,11 +39,12 @@ class EmbeddingUtils():
                 base_options=BaseOptions(model_asset_path=model_path),
                 quantize=False)
             self.embedder = TextEmbedder.create_from_options(options)
-        
         elif config['pre_model'] == "MiniLM-L6":
             self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
         self.user_infos = user_infos
+        self.item_infos = item_infos
         self.dataset = dataset
+
 
     def embedding_users(self,user_id):
         user = None

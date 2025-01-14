@@ -4,6 +4,7 @@ checkpoints/
 sh_result/*
 res/*
 mf*.py
+mf100k.json
 mf*.csv
 *.csv
 data/douban/

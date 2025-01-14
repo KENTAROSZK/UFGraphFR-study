@@ -10,7 +10,7 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,2"
 import argparse
 from mlp import MLPEngine
-from mykan import FastKANEngine as KANEngine
+from mymodel import UFGraphFREngine as UFGraphFREngine
 
 from data import SampleGenerator
 from utils import *
@@ -100,7 +100,7 @@ def train(config):
         pass
 
     if config['alias'] == 'UFGraphFR' or config['alias'] == 'UFGraphFR-lite' or config['alias'] == 'UFGraphFR-pre':
-        engine = KANEngine(config)
+        engine = UFGraphFREngine(config)
     else:
         engine = MLPEngine(config)
 
@@ -256,9 +256,9 @@ def train(config):
               "latent_dim-" + str(config['latent_dim'])+
               "use_jointembedding-" + str(config['use_jointembedding'])+
               "use_transfermer-" + str(config['use_transfermer'])+ 
-              "dp-" + str(config['dp']) + model + "-" + dataset + 
-              "use_kan-" + str(config['use_kan']) + ".json", "w") as f:
-                                        f.write(res+"\n")
+              "dp-" + str(config['dp']) ) as log_file:
+
+        log_file.write(result_str)
 
 
 
