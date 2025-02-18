@@ -16,4 +16,5 @@ train_*.py
 mf100k.json
 scatter_plot.png
 *.json
-mf100k.json
+./mf100k.json
+.idea/*
