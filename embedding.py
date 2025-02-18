@@ -12,21 +12,21 @@ class EmbeddingUtils():
             user_emb = self.embedder.embed(user_info)[0]
             return user_emb
         pass
-    def embedding_dataset(self,user_infos,item_infos):
+    def embedding_dataset(self,user_infos):
         if self.config['pre_model'] == "USE":
             # 创建一个 config['item_num'] * config['item_dim'] 的矩阵，每个元素都是 0
             user_emb = np.zeros((len(user_infos), self.config['embed_dim']))
-            item_emb = np.zeros((len(item_infos), self.config['embed_dim']))
+            # item_emb = np.zeros((len(item_infos), self.config['embed_dim']))
             for i in range(len(user_infos)):
                 user_emb[i] = self.embedder.embed(user_infos[i])[0]
 
-            for i in range(len(item_infos)):
-                item_emb[i] = self.embedder.embed(item_infos[i])[0]
+            #for i in range(len(item_infos)):
+            #    item_emb[i] = self.embedder.embed(item_infos[i])[0]
 
 
-            return  user_emb, item_emb
+            return  user_emb
 
-    def __init__(self,config,user_infos,dataset,item_infos):
+    def __init__(self,config,user_infos,dataset):
         self.config = config
 
         if config['pre_model'] == "USE":
@@ -42,7 +42,8 @@ class EmbeddingUtils():
         elif config['pre_model'] == "MiniLM-L6":
             self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
         self.user_infos = user_infos
-        self.item_infos = item_infos
+        print("EmbeddingUtils init",self.user_infos)
+        # self.item_infos = item_infos
         self.dataset = dataset
 
 
@@ -109,7 +110,9 @@ class EmbeddingUtils():
             prompts = "The user'id is {} and his look {} items".format(user["uid"], user["tag"])
         
         if self.config['pre_model'] == "USE":
+            
             embeds = self.embedder.embed(prompts)
+            print(embeds)
             return torch.tensor(embeds.embeddings[0].embedding)
         elif self.config['pre_model'] == "MiniLM-L6":
             embeds = self.embedder.encode([prompts])

@@ -48,7 +48,6 @@ class UFGraphFR(torch.nn.Module):
             self.multheadAttention_layer = TransformerBlockKan(
                 input_dim=self.latent_dim,
                 output_dim=self.latent_dim,
-                use_kan=config['use_kan'],
                 use_cuda=config['use_cuda'],
                 use_mps=config['use_mps'],
             ) 
@@ -228,14 +227,13 @@ class MultiheadAttention(nn.Module):
 class TransformerBlockKan(nn.Module):
     def __init__(self, 
         input_dim,
-        output_dim, dropout=0.1, use_kan=True,use_cuda=False,use_mps=False):
+        output_dim, dropout=0.1, use_cuda=False,use_mps=False):
         super(TransformerBlockKan, self).__init__()
         self.attention = MultiheadAttention(hid_dim=input_dim, num_heads=8,use_cuda=use_cuda,use_mps=use_mps)
         self.norm1 = nn.LayerNorm(input_dim)
         self.norm2 = nn.LayerNorm(input_dim)
         self.feed_forward = None
-        if use_kan ==   False:
-            self.feed_forward = nn.Sequential(
+        self.feed_forward = nn.Sequential(
                 nn.Linear(input_dim, input_dim*2),
                 nn.ReLU(),
                 nn.Linear(input_dim*2, output_dim)
