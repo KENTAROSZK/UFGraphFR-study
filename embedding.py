@@ -34,22 +34,25 @@ class EmbeddingUtils():
             BaseOptions = mp.tasks.BaseOptions
             TextEmbedder = mp.tasks.text.TextEmbedder
             TextEmbedderOptions = mp.tasks.text.TextEmbedderOptions
-            # For creating a text embedder instance:
+            # For creating a text embedder instance: /Users/openacademic/Downloads/douban_dataset(text information)/UFGraphFR/universal_sentence_encoder.tflite
             options = TextEmbedderOptions(
                 base_options=BaseOptions(model_asset_path=model_path),
-                quantize=False)
+                quantize=True)
             self.embedder = TextEmbedder.create_from_options(options)
         elif config['pre_model'] == "MiniLM-L6":
             self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
         self.user_infos = user_infos
+        # 将 self.user_infos 中 的 NaN 元素替换成 “ ”
+        self.user_infos = self.user_infos.fillna("")
+        
         print("EmbeddingUtils init",self.user_infos)
         # self.item_infos = item_infos
-        self.dataset = dataset
+        self.dataset = config['dataset']
 
 
     def embedding_users(self,user_id):
         user = None
-        prompts = None
+        prompts = ""
         if self.dataset == "ml-1m":
             user = self.user_infos[self.user_infos['uid'] == user_id]
             prompts = "The user'id is {} and his gender is {}, he is {} years old, works in the field of {} and lives at zip code {}".format(user["uid"], user["gender"], user["age"], user["occupation"], user["zipcode"])
@@ -90,18 +93,16 @@ class EmbeddingUtils():
                 prompts += mb.format(sx[i], user[sx[i]])       
         elif self.dataset == "douban":
             user = self.user_infos[self.user_infos['uid'] == user_id]
-            # 'uid', 'from', 'join time', 'self introduction'
-            prompts = "The user'id is {} and his is from {}, he join the douban at {}, his self-introduction is {}.".format(user["uid"], user["from"], user["join time"], user["self introduction"])
-            embeds = self.embedder.embed(prompts)
-            return torch.tensor(embeds.embeddings[0].embedding)
+            # 'uid', 'living_place', 'join_time', 'self_statement'
+            prompts = "The user'id is {} and his is from {}, he join the douban at {}, his self-introduction is {}.".format(user["uid"], user["living_place"], user["join_time"], user["self_statement"])
+            
         elif self.dataset == "lastfm-2k":
             user = self.user_infos[self.user_infos['uid'] == user_id]
             # user_id,user_active_degree,is_lowactive_period,is_live_streamer,is_video_author,follow_user_num,
             # follow_user_num_range,fans_user_num,fans_user_num_range,friend_user_num,friend_user_num_range,
             # register_
             prompts = "The user'id is {} and his look {} items".format(user["uid"], user["tag"])
-            embeds = self.embedder.embed(prompts)
-            return torch.tensor(embeds.embeddings[0].embedding)
+            
         elif self.dataset == "hetres-2k":
             user = self.user_infos[self.user_infos['uid'] == user_id]
             # user_id,user_active_degree,is_lowactive_period,is_live_streamer,is_video_author,follow_user_num,
@@ -110,9 +111,7 @@ class EmbeddingUtils():
             prompts = "The user'id is {} and his look {} items".format(user["uid"], user["tag"])
         
         if self.config['pre_model'] == "USE":
-            
             embeds = self.embedder.embed(prompts)
-            print(embeds)
             return torch.tensor(embeds.embeddings[0].embedding)
         elif self.config['pre_model'] == "MiniLM-L6":
             embeds = self.embedder.encode([prompts])

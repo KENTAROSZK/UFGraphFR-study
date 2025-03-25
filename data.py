@@ -73,12 +73,9 @@ class SampleGenerator(object):
         ratings['rank_latest'] = ratings.groupby('userId')['timestamp'].rank(method='first', 
                                                              ascending=False)
        
-        
-       
-
+    
         # 将每一个用户的第一个 作为测试集
-        
-
+        print(ratings[ratings['rank_latest']== 1])
         # ratings = ratings.sort_values(['userId', 'timestamp'], ascending=True)
         test = ratings[ratings['rank_latest']== 1]
       
@@ -86,7 +83,7 @@ class SampleGenerator(object):
         # train 为 ratings 中所有行，其中 rank_latest  > 3 的行 和 rank_latest  == 1 的行
         train = ratings[ratings['rank_latest'] > 2]
 
-        print(len(train), len(val), len(test))
+        print(train['userId'].nunique(), val['userId'].nunique(), test['userId'].nunique())
         assert train['userId'].nunique() == test['userId'].nunique() == val['userId'].nunique()
         assert len(train) + len(test) + len(val) == len(ratings)
         return train[['userId', 'itemId', 'rating']], val[['userId', 'itemId', 'rating']], test[['userId', 'itemId', 'rating']]
@@ -141,7 +138,7 @@ class SampleGenerator(object):
             single_user = []
             user_item = []
             user_rating = []
-        
+         
         assert len(users) == len(items) == len(ratings) == len(self.user_pool)
         assert train_users == sorted(train_users)
         return [users, items, ratings]
@@ -151,8 +148,12 @@ class SampleGenerator(object):
         information, where each sub-list stores a user's positives and negatives"""
         users, items, ratings   = [], [], []
         train_ratings = pd.merge(self.train_ratings, self.negatives[['userId', 'negative_items']], on='userId')
-        train_ratings['negatives'] = train_ratings['negative_items'].apply(lambda x: random.sample(sorted(x),
-                                                                                                   num_negatives))  # include userId, itemId, rating, negative_items and negatives five columns.
+        tqdm.tqdm.pandas(desc='apply')
+        # 如果 data/douban/negative_samples.csv 存在，则使用该文件中的负样本，否则使用随机采样的负样本
+      
+        
+        train_ratings['negatives'] =  train_ratings['negative_items'].progress_apply(lambda x: random.sample(sorted(x),num_negatives))
+
         single_user = []
         user_item = []
         user_rating = []

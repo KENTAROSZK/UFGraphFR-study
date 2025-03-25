@@ -1,6 +1,6 @@
 res/*
 log/*
-checkpoints/
+checkpoint/*
 sh_result/*
 res/*
 mf*.py
@@ -18,3 +18,8 @@ scatter_plot.png
 *.json
 ./mf100k.json
 .idea/*
+./scatter_plot.png
+./mf100k.json
+scatter_plot.png
+dataset.py
+data/douban

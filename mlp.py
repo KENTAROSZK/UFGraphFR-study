@@ -20,6 +20,7 @@ class MLP(torch.nn.Module):
 
         self.affine_output = torch.nn.Linear(in_features=config['layers'][-1], out_features=1)
         self.logistic = torch.nn.Sigmoid()
+    
 
     def forward(self, item_indices):
         users = torch.LongTensor([0 for i in range(len(item_indices))])
@@ -27,14 +28,16 @@ class MLP(torch.nn.Module):
         if self.config['use_cuda'] is True:
             users = users.cuda()
             items = item_indices.cuda()
+  
+
+  
+
         user_embedding = self.embedding_user(users)
         item_embedding = self.embedding_item(items)
         vector = torch.cat([user_embedding, item_embedding], dim=-1)  # the concat latent vector
         for idx, _ in enumerate(range(len(self.fc_layers))):
             vector = self.fc_layers[idx](vector)
             vector = torch.nn.ReLU()(vector)
-            # vector = torch.nn.BatchNorm1d()(vector)
-            # vector = torch.nn.Dropout(p=0.5)(vector)
         logits = self.affine_output(vector)
         rating = self.logistic(logits)
         return rating

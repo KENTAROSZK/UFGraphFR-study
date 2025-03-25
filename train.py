@@ -16,7 +16,7 @@ from data import SampleGenerator
 from utils import *
 
 
-# Training settings
+# Training settings UFGraphFR
 parser = argparse.ArgumentParser()
 parser.add_argument('--alias', type=str, default='UFGraphFR')
 parser.add_argument('--clients_sample_ratio', type=float, default=1.0)
@@ -50,7 +50,7 @@ parser.add_argument('--device_id', type=int, default=0)
 parser.add_argument('--model_dir', type=str, default='checkpoints/{}_Epoch{}_HR{:.4f}_NDCG{:.4f}.model')
 parser.add_argument('--ind', type=int, default=0)
 parser.add_argument('--ps', type=str, default=None)
-parser.add_argument('--grid_size', type=str, default='3, 3, 3, 3')
+# parser.add_argument('--grid_size', type=str, default='3, 3, 3, 3')
 # update_round
 parser.add_argument('--update_round', type=int, default=1)
 parser.add_argument('--embed_dim', type=int, default=100)
@@ -60,13 +60,7 @@ args = parser.parse_args()
 config = vars(args)
 
 def train(config):
-    if not type(config['grid_size']) is list:
-        if len(config['grid_size']) > 1:
-            # 层次维度
-            config['grid_size'] = [int(item) for item in config['grid_size'].split(',')]
-            # split : 分割, 以逗号分割
-        else:
-            config['grid_size'] = int(config['grid_size']) # 层次维度
+   
     if type(config['layers']) is str:
         # Model.
         if len(config['layers']) > 1:
@@ -93,8 +87,9 @@ def train(config):
         config['num_users'] = 1411
         config['num_items'] = 1932
     elif config['dataset'] == 'douban':
-        config['num_users'] = 1927
-        config['num_items'] = 30443
+        config['num_users'] = 1905
+        config['num_items'] = 24161
+
     else:
         pass
 
@@ -146,10 +141,11 @@ def train(config):
         
 
     elif config['dataset'] == "douban":
-        rating = pd.read_csv(dataset_dir, sep=",", header=None, names=['uid', 'mid', 'rating', 'timestamp'], engine='python')
+        # user_id,item_id,rating,time,item_type
+
+        rating = pd.read_csv(dataset_dir, sep=",", header=None, names=['uid', 'mid', 'rating', 'timestamp','item_type','count'], engine='python')
         user_infos = pd.read_csv("data/" + config['dataset'] + "/" + "user.dat", sep=",", 
-                                 header=None, 
-                                 names=['uid', 'from', 'join time', 'self introduction'], 
+                                 names=['uid', 'living_place', 'join_time', 'self_statement'], 
                                  engine='python')
 
     elif config['dataset'] == "amazon":
@@ -249,22 +245,43 @@ def train(config):
     print('hit_list: {}'.format(hit_ratio_list))
     print('ndcg_list: {}'.format(ndcg_list))
     print('val_hr_list: {}'.format(val_hr_list))
+
     print('val_ndcg_list: {}'.format(val_ndcg_list))
-    with open("res/"+"pre_model-" + str(config['pre_model'])+
-              "layers-" + "layers-" + str(config['layers'])+
+    with open("res/"+"model-" + str(config['alias'])+
+             "dataset-" + str(config['dataset'])+
               "latent_dim-" + str(config['latent_dim'])+
               "use_jointembedding-" + str(config['use_jointembedding'])+
               "use_transfermer-" + str(config['use_transfermer'])+ 
-              "dp-" + str(config['dp']) ) as log_file:
+              "reg-" + str(config['reg'])+".jsonl", "a")   as log_file:
+        jsonobj = {
+            "alias": config["alias"],
+            "layers": config["layers"],
+            "latent_dim": config["latent_dim"],
+            "dataset": config["dataset"],
+            "reg": config["reg"],
+            "hit_list": hit_ratio_list,
+            "ndcg_list": ndcg_list,
+            "val_hr_list": val_hr_list,
+            "val_ndcg_list": val_ndcg_list,
+            "train_loss_list": train_loss_list,
+            "test_loss_list": test_loss_list,
+            "val_loss_list": val_loss_list,
+            "best_val_hr": best_val_hr,
+            "final_test_round": final_test_round,
+            "result_str": result_str
+        }
+        # 写入 json 数据到文件中
+        log_file.write("\n")
+        
+        log_file.write(json.dumps(jsonobj, ensure_ascii=False))
 
-        log_file.write(result_str)
 
 
 
-    
     # 关闭日志文件
 
-    return "model:" + config['alias'] + "\n" + "dataset:" + config['dataset'] + "\n" + "use_kan" + str(config['use_kan']) + "\n" + "dataset" + config['dataset']  + "\n" + "hit_ratio_list" + str(hit_ratio_list) + "\n" +"ndcg_list" + str(ndcg_list) + "\n" + "val_hr_list" + str(val_hr_list) + "\n" + "val_ndcg_list" + str(val_ndcg_list) + "\n" + "best_val_hr" + str(best_val_hr) + "\n" + "strs" + result_str
+    return "Done!"
 
 if __name__ == "__main__":
+    # 从 0.1～1.0 ， 0.1 的步长， 10 个点
     train(config)

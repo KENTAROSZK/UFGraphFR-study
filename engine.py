@@ -102,6 +102,10 @@ class Engine(object):
         if self.config['use_cuda'] is True:
             users, items, ratings = users.cuda(), items.cuda(), ratings.cuda()
             reg_item_embedding = reg_item_embedding.cuda()
+        if self.config['use_mps'] is True:
+            device = torch.device("mps")
+            users, items, ratings = users.to(device), items.to(device), ratings.to(device)
+            reg_item_embedding = reg_item_embedding.to(device)
         optimizer.zero_grad()
         optimizer_u.zero_grad()
         optimizer_i.zero_grad()            
@@ -144,7 +148,7 @@ class Engine(object):
         """receive client models' parameters in a round, aggregate them and store the aggregated result for server."""
         # construct the user relation graph via embedding similarity.
         if round%self.config['update_round'] == 0:
-                self.user_relation_graph = construct_user_relation_graph_via_item(round_user_params,  self.config['num_items'],
+                self.user_relation_graph = construct_user_relation_graph_via_user(round_user_params, 
                                                             self.config['latent_dim'],
                                                             self.config['similarity_metric'])
         topk_user_relation_graph = select_topk_neighboehood(self.user_relation_graph, self.config['neighborhood_size'],
@@ -243,7 +247,7 @@ class Engine(object):
             optimizer_t = None
 
 
-            if self.config['alias'] == 'UFGraphFR' :
+            if self.config['alias'] == 'UFGraphFR' or self.config['alias'] == 'UFGraphFR-wot' :
                 base_params = [
                       {"params": model_client.user_mlp.parameters()},
                       {"params": model_client.fc_layers.parameters()},
@@ -414,6 +418,13 @@ class Engine(object):
             negative_users = negative_users.cpu()
             negative_items = negative_items.cpu()
             negative_scores = negative_scores.cpu()
+        if self.config['use_mps'] is True:
+            test_users = test_users.to(torch.device("mps"))
+            test_items = test_items.to(torch.device("mps"))
+            test_scores = test_scores.to(torch.device("mps"))
+            negative_users = negative_users.to(torch.device("mps"))
+            negative_items = negative_items.to(torch.device("mps"))
+            negative_scores = negative_scores.to(torch.device("mps"))
         self._metron.subjects = [test_users.data.view(-1).tolist(),
                                  test_items.data.view(-1).tolist(),
                                  test_scores.data.view(-1).tolist(),
