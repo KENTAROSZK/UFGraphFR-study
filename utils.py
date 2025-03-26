@@ -1,6 +1,7 @@
-"""
-    Some handy functions for pytroch model training ...
-"""
+'''
+Copyright 2025 trueWangSyutung
+Open Academic Community License V1 
+'''
 import torch
 import numpy as np
 import copy

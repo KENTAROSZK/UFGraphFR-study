@@ -1,92 +1,112 @@
-# Open Academic Community License Version 1.0 (OACL-1.0)
-## Preamble
-In an increasingly interconnected world, the Open Academic Community (OAC) embraces borderless collaboration through science and technology. Rooted in principles of academic freedom, equitable access, and collective advancement, this license seeks to eliminate barriers to knowledge while protecting creators' rights. By adopting this license, you join a global movement prioritizing human progress over commercial interests.
+                        Open Academic Community License
+                           Version 1.0, March 2025
+                        https://oac.ac.cn/OACLv1.html
 
-## 1. Definitions
-- ​**Original Work**: The initial copyrighted software/academic work.
-- ​**Derivative Work**: Any modification, adaptation, or extension of the Original Work.
-- ​**Author**: Creator(s) of the Original Work.
-- ​**Licensee**: Any party using/distributing the Work under this license.
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
-## 2. Copyright & Attribution
+   In an increasingly interconnected world, the Open Academic Community (OAC) embraces borderless collaboration through science and technology. Rooted in principles of academic freedom, equitable access, and collective advancement, this license seeks to eliminate barriers to knowledge while protecting creators' rights. By adopting this license, you join a global movement prioritizing human progress over commercial interests.
 
-### 2.1 Original Work
-The Author retains all copyrights to the Original Work, including but not limited to:
-- Reproduction rights
-- Distribution rights
-- Modification rights
-- Public performance rights
-- Translation/adaptation rights
+   1. Definitions.
+   "Original Work": The initial copyrighted software/academic work.
+   "Derivative Work": Any modification, adaptation, or extension of the Original Work.
+   "Author": Creator(s) of the Original Work.
+   "Licensee": Any party using/distributing the Work under this license.
 
-### 2.2 Derivative Works
-1. Derivative Works must:
-   - Clearly state modifications made
-   - Preserve original copyright notices
-   - Display prominent attribution to the Author
-2. Copyright of Derivative Works belongs to their creators, provided they:
-   - Comply with this license
-   - Do not infringe the Original Work's rights
+   2. Copyright & Attribution
+      2.1. Original Work
+      The Author retains all copyrights to the Original Work, including but not limited to:
+         Reproduction rights
+         Distribution rights
+         Modification rights
+         Public performance rights
+         Translation/adaptation rights
 
-## 3. Usage Rights
+      2.2 Derivative Works
+         1. Derivative Works must:
+               Clearly state modifications made
+               Preserve original copyright notices
+               Display prominent attribution to the Author
+         2. Copyright of Derivative Works belongs to their creators, provided they:
+               Comply with this license
+               Do not infringe the Original Work's rights
 
-### 3.1 Permitted Uses
-All users may freely:
-- Use for academic research/education
-- Modify and create derivatives
-- Distribute verbatim copies
-- Collaborate across institutions
+   3. Usage Rights
+      3.1 Permitted Uses
+      All users may freely:
+         Use for academic research/education
+         Modify and create derivatives
+         Distribute verbatim copies
+         Collaborate across institutions
 
-### 3.2 Commercial Restrictions
-Any commercial use requires:
-1. Written permission from the Author
-2. Fair compensation to the Author
-3. Clear contractual agreement
+      3.2 Commercial Restrictions
+      Any commercial use requires:
+      1. Written permission from the Author
+      2. Fair compensation to the Author
+      3. Clear contractual agreement
 
-*Commercial use includes: Sales, licensing for profit, advertising-funded distribution, or corporate R&D applications.*
+   Commercial use includes: Sales, licensing for profit, advertising-funded distribution, or corporate R&D applications.
 
-## 4. Distribution Requirements
+   4. Distribution Requirements
 
-### 4.1 Legal Compliance
-Distributors must:
-- Adhere to all applicable laws
-- Obtain necessary export/import certifications
-- Prohibit military/oppressive regime applications
+      4.1 Legal Compliance
+      Distributors must:
+         Adhere to all applicable laws
+         Obtain necessary export/import certifications
+         Prohibit military/oppressive regime applications
 
-### 4.2 Security Assurance
-Distributors must:
-- Scan for malware/vulnerabilities
-- Disclose known limitations/risks
-- Maintain update mechanisms for critical fixes
+      4.2 Security Assurance
+      Distributors must:
+         Scan for malware/vulnerabilities
+         Disclose known limitations/risks
+         Maintain update mechanisms for critical fixes
 
 
-## 5. Ideological Commitments
+   5. Ideological Commitments
 
-By using this license, you agree to:
-- Promote cross-border academic solidarity
-- Resist knowledge privatization trends
-- Share improvements with the OAC community
-- Prioritize research addressing global challenges:
-  - Climate change
-  - Public health crises
-  - Technological inequality
-  - Sustainable development
+   By using this license, you agree to:
+      Promote cross-border academic solidarity
+      Resist knowledge privatization trends
+      Share improvements with the OAC community
+      Prioritize research addressing global challenges:
+      Climate change
+      Public health crises
+      Technological inequality
+      Sustainable development
 
-## 6. Termination
+   6. Termination
 
-This license terminates automatically if:
-- The Licensee violates its terms
-- The Author formally revokes rights
-- Derivative Work usage endangers human welfare
+   This license terminates automatically if:
+      The Licensee violates its terms
+      The Author formally revokes rights
+      Derivative Work usage endangers human welfare
 
-## 7. Disclaimer
+   7. Disclaimer
 
-**THE WORK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. AUTHORS SHALL NOT BE LIABLE FOR DAMAGES RESULTING FROM USE/MISUSE. USERS ASSUME ALL TECHNICAL AND ETHICAL RESPONSIBILITIES FOR DERIVATIVE APPLICATIONS.**
+   "THE WORK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. AUTHORS SHALL NOT BE LIABLE FOR DAMAGES RESULTING FROM USE/MISUSE. USERS ASSUME ALL TECHNICAL AND ETHICAL RESPONSIBILITIES FOR DERIVATIVE APPLICATIONS."
 
-## 8. Governance
+   8. Governance
 
-1. Disputes shall be resolved through academic mediation first
-2. License updates require 2/3 approval from current OAC members
+   1. Disputes shall be resolved through academic mediation first
+   2. License updates require 2/3 approval from current OAC members
 
----
 
-*To apply this license, include a copy with all distributions and link to the official OAC repository. Modified files must state "Adapted from [Original Work] under OACL-1.0".*
+APPENDIX: How to apply the Open Academic Community License to your work.
+
+
+To apply the Open Academic Community License to your work, attach the following
+boilerplate notice, with the fields enclosed by brackets "[]"
+replaced with your own identifying information. (Don't include
+the brackets!)  The text should be enclosed in the appropriate
+comment syntax for the file format. We also recommend that a
+file or class name and description of purpose be included on the
+same "printed page" as the copyright notice for easier
+identification within third-party archives.
+
+Copyright [yyyy] [name of copyright owner]
+Open Academic Community License V1
+
+
+Licensed under the Open Academic Community License, Version 1.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+https://oac.ac.cn/OACLv1.html

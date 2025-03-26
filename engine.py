@@ -1,3 +1,7 @@
+'''
+Copyright 2025 trueWangSyutung
+Open Academic Community License V1 
+'''
 import torch
 from torch.autograd import Variable
 from tensorboardX import SummaryWriter

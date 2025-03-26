@@ -1,3 +1,8 @@
+'''
+Copyright 2025 trueWangSyutung
+Open Academic Community License V1 
+'''
+
 import torch
 from engine import Engine
 from utils import use_cuda, resume_checkpoint
