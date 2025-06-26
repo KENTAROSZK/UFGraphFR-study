@@ -23,3 +23,4 @@ scatter_plot.png
 scatter_plot.png
 dataset.py
 data/douban
+./data/*
