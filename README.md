@@ -10,49 +10,72 @@
 
 新規開発・リファクタリングに関わる方は、以下の順序でファイルを確認することをお勧めします：
 
-1. **`train.py`** - メインエントリーポイント、実行の起点
-2. **`mymodel.py`** - コアモデル実装（UFGraphFR、Transformer、MLP）
-3. **`engine.py`** - 訓練・評価エンジン、フェデレーテッドラーニングロジック
-4. **`data.py`** - データローダー、前処理ロジック
-5. **`utils.py`** - ユーティリティ関数、グラフ構築
-6. **`embedding.py`** - ユーザー・アイテム埋め込み処理
-7. **`metrics.py`** - 評価指標（Hit Ratio、NDCG）
+1. **`train.py`** - メインエントリーポイント、コマンドライン引数解析、実行フロー制御
+2. **`mymodel.py`** - コアモデル実装（UFGraphFR、UFGraphFREngine、Transformer、MLP）
+3. **`engine.py`** - 基底エンジンクラス、フェデレーテッドラーニングロジック、訓練・評価処理
+4. **`data.py`** - データローダー、SampleGenerator、前処理ロジック
+5. **`embedding.py`** - EmbeddingUtils、ユーザー・アイテム埋め込み処理（USE/MiniLM）
+6. **`utils.py`** - ユーティリティ関数、グラフ構築、デバイス設定
+7. **`metrics.py`** - 評価指標（Hit Ratio、NDCG）の計算処理
 
 ## 📊 システム処理フロー
 
 ```mermaid
 graph TD
     A[train.py - メインエントリー] --> B[引数解析・設定読み込み]
-    B --> C[data.py - データセット読み込み]
-    C --> D[data.py - SampleGenerator]
-    D --> E[train/validation/test分割]
-    E --> F[embedding.py - EmbeddingUtils初期化]
-    F --> G[USE/MiniLM埋め込み生成]
+    B --> C[データセット設定・ユーザー/アイテム数設定]
+    C --> D[data.py - データセット読み込み]
+    D --> E[data.py - SampleGenerator初期化]
+    E --> F[train/validation/test分割]
+    F --> G[embedding.py - EmbeddingUtils初期化]
+    G --> H[USE/MiniLM埋め込み生成]
     
-    G --> H[mymodel.py - UFGraphFREngine初期化]
-    H --> I[mymodel.py - UFGraphFRモデル構築]
-    I --> J[Transformer/MLP/Attention layers]
+    H --> I[mymodel.py - UFGraphFREngine初期化]
+    I --> J[mymodel.py - UFGraphFRモデル構築]
+    J --> K[Transformer/MLP/Attention layers初期化]
     
-    J --> K[engine.py - フェデレーテッド訓練開始]
-    K --> L[参加ユーザーサンプリング]
-    L --> M[各ユーザーのローカル訓練]
-    M --> N[engine.py - fed_train_single_batch]
-    N --> O[モデルパラメータ集約]
-    O --> P[utils.py - グラフ構築]
-    P --> Q[ユーザー関係グラフ更新]
+    K --> L[engine.py - フェデレーテッド訓練開始]
+    L --> M[参加ユーザーサンプリング]
+    M --> N[各ユーザーのローカル訓練]
+    N --> O[engine.py - fed_train_single_batch]
+    O --> P[モデルパラメータ更新]
+    P --> Q[utils.py - グラフ構築・集約]
+    Q --> R[ユーザー関係グラフ更新]
     
-    Q --> R[engine.py - 評価フェーズ]
-    R --> S[metrics.py - Hit Ratio/NDCG計算]
-    S --> T[次ラウンドまたは終了]
+    R --> S[engine.py - 評価フェーズ]
+    S --> T[metrics.py - Hit Ratio/NDCG計算]
+    T --> U[次ラウンドまたは終了判定]
     
-    T --> K
-    T --> U[結果保存・出力]
+    U --> L
+    U --> V[結果保存・ログ出力]
 
     style A fill:#e1f5fe
-    style I fill:#f3e5f5
-    style K fill:#e8f5e8
-    style R fill:#fff3e0
+    style J fill:#f3e5f5
+    style L fill:#e8f5e8
+    style S fill:#fff3e0
+    style V fill:#ffe0e0
 ```
+
+### 詳細な処理フロー説明
+
+1. **初期化フェーズ** (`train.py`)
+   - コマンドライン引数の解析
+   - データセット固有の設定（ユーザー数、アイテム数）
+   - モデルエンジンの選択（UFGraphFREngine or MLPEngine）
+
+2. **データ準備フェーズ** (`data.py`, `embedding.py`)
+   - データセット読み込み（ratings.dat, u.user等）
+   - ユーザー・アイテムIDの再インデックス
+   - 埋め込み生成（Universal Sentence Encoder/MiniLM）
+
+3. **訓練ループ** (`engine.py`)
+   - 各ラウンドで参加ユーザーをサンプリング
+   - ローカル訓練の実行
+   - パラメータ集約とグラフ更新
+
+4. **評価・検証** (`metrics.py`)
+   - Hit Ratio@10とNDCG@10の計算
+   - 最良結果の記録とログ出力
 
 ## 🏗️ アーキテクチャ概要
 
@@ -60,23 +83,48 @@ graph TD
 
 #### 1. **モデル層** (`mymodel.py`)
 - **UFGraphFR**: メインの推薦モデル
+  - ユーザー埋め込み（Linear/Embedding）
+  - アイテム埋め込み（Embedding）
+  - マルチヘッドアテンション（TransformerBlockKan）
+  - MLP層（CommonMLP）
 - **TransformerBlockKan**: マルチヘッドアテンション機構
 - **CommonMLP**: 共通MLP層
 - **MultiheadAttention**: カスタムアテンション実装
+- **UFGraphFREngine**: エンジンクラス（Engineを継承）
 
 #### 2. **エンジン層** (`engine.py`)
 - **Engine**: 基底訓練・評価エンジン
+  - `fed_train_a_round()`: フェデレーテッドラウンド実行
+  - `fed_train_single_batch()`: バッチ単位の訓練
+  - `fed_evaluate()`: 評価処理
+  - `aggregate_clients_params()`: パラメータ集約
 - フェデレーテッドラーニングロジック
 - クライアント-サーバー間のパラメータ集約
 
 #### 3. **データ層** (`data.py`)
 - **SampleGenerator**: データ分割・負例サンプリング
+  - `store_all_train_data()`: 訓練データ生成
+  - `validate_data/test_data`: 検証・テストデータ
 - **UserItemRatingDataset**: PyTorchデータセット
+  - ユーザー、アイテム、評価のテンソル化
 
 #### 4. **埋め込み層** (`embedding.py`)
 - **EmbeddingUtils**: テキスト埋め込み生成
-- Universal Sentence Encoder (USE)
-- MiniLM-L6サポート
+  - `embedding_users()`: ユーザー特徴の埋め込み
+  - Universal Sentence Encoder (USE)サポート
+  - MiniLM-L6サポート
+  - ユーザー情報のテキスト変換・埋め込み
+
+#### 5. **ユーティリティ層** (`utils.py`)
+- デバイス設定（CUDA/MPS）
+- グラフ構築関数
+- 正則化計算
+- チェックポイント管理
+
+#### 6. **評価層** (`metrics.py`)
+- **MetronAtK**: Top-K評価指標
+  - Hit Ratio@K計算
+  - NDCG@K計算
 
 ## 📋 主要設定パラメータ
 
@@ -113,6 +161,11 @@ pip install -r requirements.txt
 - sentence-transformers 3.2.1+
 
 ## 🏃 実行方法
+
+### Macでローカルで実行する場合
+```bash
+poetry run python train.py --use_mps True --batch_size 128 --latent_dim 16 --pre_model MiniLM-L6 --embed_dim 384 --layers "32, 16, 8"
+```
 
 ### 基本実行
 ```bash
@@ -184,23 +237,65 @@ python train.py --batch_size 128 --latent_dim 16
 
 ## 🔍 デバッグ・開発のヒント
 
-### 1. ログ出力の確認
+### 1. 主要な開発ポイント
+
+#### モデル実装の確認ポイント (`mymodel.py`)
 ```python
-# engine.py内でのデバッグ
-print(f"Round {round_id}, User {user}, Loss: {loss.item()}")
+# UFGraphFRモデルの構造確認
+print(model)  # モデル構造を出力
+print(f"User embedding: {model.embedding_user}")
+print(f"Item embedding: {model.embedding_item}")
 ```
 
-### 2. モデル構造の確認
+#### 訓練プロセスのデバッグ (`engine.py`)
 ```python
-# mymodel.py内で
-print(self.model)  # モデル構造を出力
+# fed_train_a_round内でのデバッグ
+print(f"Round {round_id}, Participants: {len(participants)}")
+print(f"User {user}, Loss: {loss.item()}")
 ```
 
-### 3. データ形状の確認
+#### データ形状の確認 (`data.py`)
 ```python
-# data.py内で
-print(f"Train: {len(train)}, Val: {len(val)}, Test: {len(test)}")
+# SampleGenerator内で
+print(f"Train: {len(train_data)}, Val: {len(val_data)}, Test: {len(test_data)}")
+print(f"User range: [{min_user}, {max_user}]")
 ```
+
+### 2. 主要な関数・クラスの役割
+
+#### `train.py`の主要部分
+- `train(config)`: メイン訓練関数
+- データセット別の設定（ml-1m, 100k, lastfm-2k等）
+- コマンドライン引数の解析
+
+#### `engine.py`の主要メソッド
+- `fed_train_a_round()`: 1ラウンドの訓練実行
+- `fed_train_single_batch()`: バッチ単位の訓練
+- `fed_evaluate()`: 評価実行
+- `aggregate_clients_params()`: パラメータ集約
+
+#### `mymodel.py`の主要クラス
+- `UFGraphFR`: メインモデル
+- `UFGraphFREngine`: エンジン実装
+- `TransformerBlockKan`: アテンション機構
+- `CommonMLP`: MLP層
+
+### 3. 開発時の注意点
+
+#### フェデレーテッドラーニングの実装
+- ユーザーごとのローカル訓練
+- パラメータの集約処理
+- グラフ構築による知識共有
+
+#### デバイス対応
+- CUDA/MPS/CPUの切り替え
+- テンソルのデバイス移動
+- メモリ効率の最適化
+
+#### データ前処理
+- ユーザー・アイテムIDの再インデックス
+- 負例サンプリング
+- 埋め込み生成
 
 ## 📚 さらなる詳細
 
@@ -217,6 +312,16 @@ Open Academic Community License V1
 
 ---
 
-💡 **開発時のTips**: 新しい機能を追加する際は、まず`mymodel.py`でモデルアーキテクチャを確認し、`engine.py`で訓練ロジックを理解してから実装することをお勧めします。
+💡 **開発時のTips**: 
+- 新しい機能を追加する際は、まず`train.py`で全体の流れを把握
+- `mymodel.py`でモデルアーキテクチャを確認
+- `engine.py`でフェデレーテッドラーニングロジックを理解
+- `data.py`でデータフローを確認してから実装することをお勧めします
+
+🎯 **リファクタリング指針**:
+- 型アノテーションを厳密に記述（Python 3.10+の新記法使用）
+- NumPy形式のdocstringを使用
+- モジュール間の結合度を最小化
+- Pydanticまたはdataclassを活用した引数設計
 
 
